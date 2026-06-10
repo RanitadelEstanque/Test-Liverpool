@@ -1,0 +1,45 @@
+# Defines qué canales vas a scrapear por país
+canales_latam = {
+    "Mexico": ["Amazon", "MercadoLibre", "Liverpool", "Telcel", ...], # Hasta 11
+    "Chile": ["Falabella", "Paris", "PCFactory", ...],
+    "Colombia": ["Exito", "Alkosto", "Claro", ...],
+    "Peru": ["Ripley", "Oechsle", "PlazaVea", ...]
+} 
+
+
+# Convertir tu código de limpieza en una función universal
+def limpiar_y_estructurar_data(raw_data, country, channel):
+    # Aquí va exactamente el código que ya tienes construido
+    # Seleccionas columnas, filtras, limpias los precios, etc.
+    
+    # Aseguras que las columnas de país y canal se agreguen correctamente
+    df_clean['Country'] = country
+    df_clean['Channel'] = channel
+    
+    # Te aseguras de que queden exactamente tus columnas
+    columnas_finales = ['Country', 'Brand', 'Product_Model', 'Current_Price', 'Historical_Price', 'URL_Source', 'Report_Date', 'Channel', 'Is_Cheapest_Among_Duplicates']
+    
+    return df_clean[columnas_finales]
+
+
+# Automatizar el flujo para que haga todo de una vez
+import pandas as pd
+
+# Creas un dataframe vacío (una tabla maestra temporal)
+master_database = pd.DataFrame()
+
+# El ciclo que recorre todos tus países y canales
+for country, channels in canales_latam.items():
+    for channel in channels:
+        print(f"Procesando: {country} - {channel}")
+        
+        # 1. Tu código o función para extraer el raw_data (scraper)
+        raw_data = extraer_data_del_scraper(country, channel) 
+        
+        # 2. Llamas a tu función de limpieza
+        clean_data = limpiar_y_estructurar_data(raw_data, country, channel)
+        
+        # 3. Lo unes a tu tabla maestra verticalmente
+        master_database = pd.concat([master_database, clean_data], ignore_index=True)
+
+# 4. Finalmente, envías ese 'master_database' consolidado directo a tu pestaña de Google Sheets
