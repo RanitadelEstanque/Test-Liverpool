@@ -1,0 +1,14 @@
+# Try to get the worksheet. If it doesn't exist, create it.
+try:
+    worksheet_deduplicated = spreadsheet.worksheet("MASTER_Earbuds_Deduplicated")
+except gspread.exceptions.WorksheetNotFound:
+    print("Creating new worksheet 'MASTER_Earbuds_Deduplicated'...")
+    worksheet_deduplicated = spreadsheet.add_worksheet(title="MASTER_Earbuds_Deduplicated", rows="1000", cols="10")
+
+# Clear existing content in the sheet
+worksheet_deduplicated.clear()
+
+# Update the sheet with the DataFrame's headers and data
+worksheet_deduplicated.update([df_master_deduplicated.columns.values.tolist()] + df_master_deduplicated.values.tolist())
+
+print("Successfully exported deduplicated data to 'MASTER_Earbuds_Deduplicated' worksheet.")
