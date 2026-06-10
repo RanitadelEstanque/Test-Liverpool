@@ -1,0 +1,94 @@
+# ==============================================================================
+# 1. CONECTAR GOOGLE COLAB CON TU GOOGLE SHEETS
+# ==============================================================================
+from google.colab import auth
+auth.authenticate_user()
+
+import gspread
+from google.auth import default
+import pandas as pd
+
+creds, _ = default()
+gc = gspread.authorize(creds)
+
+# ⚠️ REEMPLAZA AQUÍ: Pon el nombre exacto de tu archivo de Google Sheets
+nombre_del_archivo = "Test Liverpool_Allscenario"
+spreadsheet = gc.open(nombre_del_archivo)
+
+# ==============================================================================
+# 2. LEER Y SANITIZAR DICCIONARIO DE MAPEO
+# ==============================================================================
+worksheet_mapeo = spreadsheet.worksheet("MAPEO_MODELOS")
+df_mapeo = pd.DataFrame(worksheet_mapeo.get_all_records())
+
+# Pasamos a minúsculas Y BORRAMOS ESPACIOS EXTRAS al principio o final (.str.strip())
+df_mapeo['Palabra_Clave'] = df_mapeo['Palabra_Clave'].astype(str).str.lower().str.strip()
+df_mapeo['Nombre_Comercial_Limpio'] = df_mapeo['Nombre_Comercial_Limpio'].astype(str).str.strip()
+
+# Ordenamos por longitud para respetar jerarquías
+df_mapeo['longitud'] = df_mapeo['Palabra_Clave'].str.len()
+df_mapeo = df_mapeo.sort_values(by='longitud', ascending=False)
+
+# Creamos el diccionario final libre de espacios fantasmas
+diccionario_modelos = dict(zip(df_mapeo['Palabra_Clave'], df_mapeo['Nombre_Comercial_Limpio']))
+
+# ==============================================================================
+# 3. LEER DATA CRUDA
+# ==============================================================================
+worksheet_raw = spreadsheet.worksheet("RAW_Earbuds")
+df = pd.DataFrame(worksheet_raw.get_all_records())
+
+# ==============================================================================
+# 4. FUNCIÓN MEJORADA CON DIAGNÓSTICO
+# ==============================================================================
+def clasificar_modelo_automatico(titulo):
+    titulo_minusc = str(titulo).lower().strip()
+
+    for palabra_clave, nombre_limpio in diccionario_modelos.items():
+        if palabra_clave in titulo_minusc:
+            return nombre_limpio
+
+    # MEJORA: Si no lo encuentra, te muestra qué texto venía en "Producto Clean"
+    return f"Revisar: {titulo}"
+
+df['Producto_Final_BI'] = df['Producto Clean'].apply(clasificar_modelo_automatico)
+
+# ==============================================================================
+# 5. REPARAR LOS PRECIOS
+# ==============================================================================
+def corregir_precio(precio_sucio):
+    precio_str = str(precio_sucio).replace('$', '').replace(',', '').replace('.', '').strip()
+    if not precio_str or precio_str == 'none' or precio_str == '':
+        return 0.0
+    try:
+        return float(precio_str) / 100
+    except:
+        return 0.0
+
+df['Precio_Nuevo_Final'] = df['New'].apply(corregir_precio)
+df['Precio_Histo_Final'] = df['Histo'].apply(corregir_precio)
+
+# ==============================================================================
+# 6. ENVIAR A MASTER_EARBUDS
+# ==============================================================================
+columnas_ejecutivas = {
+    'Brand': 'Brand',
+    'Producto_Final_BI': 'Product_Model',
+    'Precio_Nuevo_Final': 'Current_Price',
+    'Precio_Histo_Final': 'Historical_Price',
+    'Link': 'URL_Source'
+}
+
+df_master = df[list(columnas_ejecutivas.keys())].rename(columns=columnas_ejecutivas)
+df_master['Report_Date'] = pd.Timestamp.now().strftime('%Y-%m-%d')
+df_master['Channel'] = 'Liverpool'
+
+try:
+    worksheet_master = spreadsheet.worksheet("MASTER_Earbuds")
+except:
+    worksheet_master = spreadsheet.add_worksheet(title="MASTER_Earbuds", rows="1000", cols="10")
+
+worksheet_master.clear()
+worksheet_master.update([df_master.columns.values.tolist()] + df_master.values.tolist())
+
+print("Done! Corrección aplicada.")
