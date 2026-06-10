@@ -1,0 +1,25 @@
+# 1. Drop exact duplicates across all columns first (if any)
+df_master_deduplicated = df_master.drop_duplicates().copy()
+
+# 2. Sort by Product_Model and then by Current_Price (ascending)
+# This prepares the DataFrame so that when duplicates are dropped, the cheapest one is kept.
+df_master_deduplicated = df_master_deduplicated.sort_values(by=['Product_Model', 'Current_Price'], ascending=[True, True])
+
+# 3. Add a column to indicate if it's the cheapest among its Product_Model duplicates
+# Initialize the column to False
+df_master_deduplicated['Is_Cheapest_Among_Duplicates'] = False
+
+# Find the indices of the rows that have the minimum 'Current_Price' for each 'Product_Model' group
+cheapest_indices = df_master_deduplicated.groupby('Product_Model')['Current_Price'].idxmin()
+
+# Set 'Is_Cheapest_Among_Duplicates' to True for these rows
+df_master_deduplicated.loc[cheapest_indices, 'Is_Cheapest_Among_Duplicates'] = True
+
+# 4. Drop duplicates based on 'Product_Model', keeping the first occurrence
+# (which is the one with the lowest price due to previous sorting)
+df_master_deduplicated = df_master_deduplicated.drop_duplicates(subset='Product_Model', keep='first').copy()
+
+print(f"Original number of rows: {len(df_master)}")
+print(f"Number of rows after deduplication (keeping cheapest): {len(df_master_deduplicated)}")
+
+display(df_master_deduplicated.head())
